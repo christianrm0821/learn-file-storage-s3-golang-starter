@@ -261,7 +261,7 @@ function viewVideo(video) {
     thumbnailImg.style.display = 'none';
   } else {
     thumbnailImg.style.display = 'block';
-    thumbnailImg.src = video.thumbnail_url;
+    thumbnailImg.src = `${video.thumbnail_url}?v=${Date.now()}`;
   }
 
   const videoPlayer = document.getElementById('video-player');
@@ -283,10 +283,10 @@ async function deleteVideo() {
   }
 
   try {
-    const res = await fetch(`/api/videos/${currentVideo.id}`, {
+    const res = await fetch(`/ api / videos / ${currentVideo.id} `, {
       method: 'DELETE',
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
+        Authorization: `Bearer ${localStorage.getItem('token')} `,
       },
     });
     if (!res.ok) {
@@ -296,6 +296,6 @@ async function deleteVideo() {
     document.getElementById('video-display').style.display = 'none';
     await getVideos();
   } catch (error) {
-    alert(`Error: ${error.message}`);
+    alert(`Error: ${error.message} `);
   }
 }
