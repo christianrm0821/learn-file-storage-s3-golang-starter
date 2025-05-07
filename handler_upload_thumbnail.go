@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"mime"
@@ -37,8 +39,12 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 
 	fmt.Println("uploading thumbnail for video", videoID, "by user", userID)
 
-	// TODO: implement the upload here
 	//parses the request body up to 10MB(maxMemory)
+	key := make([]byte, 32)
+	rand.Read(key)
+
+	url := base64.RawURLEncoding.EncodeToString(key)
+
 	const maxMemory = 10 << 20
 	err = r.ParseMultipartForm(maxMemory)
 	if err != nil {
@@ -93,9 +99,10 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	videoWExtension := fmt.Sprintf("%v%v", videoID.String(), extensions[0])
+	randWExtension := fmt.Sprintf("%v%v", url, extensions[0])
+	//videoWExtension := fmt.Sprintf("%v%v", videoID.String(), extensions[0])
 	baseURL := fmt.Sprintf("http://localhost:%v", cfg.port)
-	localPath := filepath.Join(cfg.assetsRoot, videoWExtension)
+	localPath := filepath.Join(cfg.assetsRoot, randWExtension)
 
 	fullPath := fmt.Sprintf("%v/%v", baseURL, localPath)
 	//fullPath := filepath.Join(fullPathString)
