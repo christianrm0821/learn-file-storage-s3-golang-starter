@@ -9,8 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/database"
-
 	"github.com/joho/godotenv"
+
 	_ "github.com/lib/pq"
 )
 
@@ -136,4 +136,5 @@ func main() {
 
 	log.Printf("Serving on: http://localhost:%s/app/\n", port)
 	log.Fatal(srv.ListenAndServe())
+
 }
