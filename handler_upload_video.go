@@ -93,12 +93,30 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	} else {
 		aspectRatio = "other"
 	}
+	/*
 
-	_, err = tmpFile.Seek(0, io.SeekStart)
+		_, err = tmpFile.Seek(0, io.SeekStart)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "error resetting pointer to start of temp file", err)
+			return
+		}
+	*/
+
+	//preprocessing video
+	newPath, err := processVideoForFastStart(tmpFile.Name())
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "error resetting pointer to start of temp file", err)
+		respondWithError(w, http.StatusBadRequest, "could not process video fast", err)
+		fmt.Printf("%v\n", err)
 		return
 	}
+
+	processedFile, err := os.Open(newPath)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "could not open processed file", err)
+		return
+	}
+	defer processedFile.Close()
+
 	key := make([]byte, 32)
 	rand.Read(key)
 
@@ -107,7 +125,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	s3BucketParams := s3.PutObjectInput{
 		Bucket:      aws.String("tubely-08211280"),
 		Key:         &url,
-		Body:        tmpFile,
+		Body:        processedFile,
 		ContentType: &mediaType,
 	}
 
