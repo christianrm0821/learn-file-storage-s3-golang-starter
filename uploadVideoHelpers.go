@@ -2,9 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
+	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/database"
 )
 
 type videoDimensions struct {
@@ -65,4 +72,44 @@ func processVideoForFastStart(filepath string) (string, error) {
 		return "", err
 	}
 	return newFilePath, nil
+}
+
+func generatePresignedURL(s3Client *s3.Client, bucket, key string, expireTime time.Duration) (string, error) {
+	presignClient := s3.NewPresignClient(s3Client)
+	v4Req, err := presignClient.PresignGetObject(context.Background(), &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	}, s3.WithPresignExpires(expireTime))
+	if err != nil {
+		fmt.Printf("error with the presignGetObject function Error: %v", err)
+		return "", err
+	}
+	return v4Req.URL, nil
+}
+
+func (cfg *apiConfig) dbVideoToSignedVideo(video database.Video) (database.Video, error) {
+	if video.VideoURL == nil || *video.VideoURL == "" {
+		fmt.Println("there is no url")
+		return video, nil
+	}
+	if strings.HasPrefix(*video.VideoURL, "http") {
+		return video, nil
+	}
+
+	splitted := strings.Split(*video.VideoURL, ",")
+	if len(splitted) < 2 {
+		fmt.Printf("incorrect size, do not have bucket and key Size: %v  input: %v\n", len(splitted), splitted[0])
+		//return video, fmt.Errorf("bad format for videoURL")
+		return video, nil
+	}
+	bucket := splitted[0]
+	s3key := splitted[1]
+
+	presignedURL, err := generatePresignedURL(cfg.s3Client, bucket, s3key, time.Minute*15)
+	if err != nil {
+		fmt.Printf("error getting the presignedURL Error: %v", err)
+		return video, err
+	}
+	video.VideoURL = &presignedURL
+	return video, nil
 }

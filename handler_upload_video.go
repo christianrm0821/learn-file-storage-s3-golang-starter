@@ -48,6 +48,13 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, http.StatusUnauthorized, "Unauthorized", nil)
 		return
 	}
+	/*
+		video, err = cfg.dbVideoToSignedVideo(video)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "could not get signed Video", err)
+			return
+		}
+	*/
 
 	file, _, err := r.FormFile("video")
 	if err != nil {
@@ -93,14 +100,6 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	} else {
 		aspectRatio = "other"
 	}
-	/*
-
-		_, err = tmpFile.Seek(0, io.SeekStart)
-		if err != nil {
-			respondWithError(w, http.StatusBadRequest, "error resetting pointer to start of temp file", err)
-			return
-		}
-	*/
 
 	//preprocessing video
 	newPath, err := processVideoForFastStart(tmpFile.Name())
@@ -120,11 +119,13 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	key := make([]byte, 32)
 	rand.Read(key)
 
-	url := fmt.Sprintf("%v/%v.mp4", aspectRatio, base64.RawURLEncoding.EncodeToString(key))
+	s3key := fmt.Sprintf("%v/%v.mp4", aspectRatio, base64.RawURLEncoding.EncodeToString(key))
+
+	url := fmt.Sprintf("%v,%v", os.Getenv("S3_BUCKET"), s3key)
 
 	s3BucketParams := s3.PutObjectInput{
-		Bucket:      aws.String("tubely-08211280"),
-		Key:         &url,
+		Bucket:      aws.String(os.Getenv("S3_BUCKET")),
+		Key:         &s3key,
 		Body:        processedFile,
 		ContentType: &mediaType,
 	}
@@ -134,14 +135,19 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, http.StatusBadRequest, "error putting video in s3 bucket", err)
 		return
 	}
-	s3URL := fmt.Sprintf("https://%v.s3.%v.amazonaws.com/%v", cfg.s3Bucket, cfg.s3Region, url)
-	video.VideoURL = &s3URL
+	//s3URL := fmt.Sprintf("https://%v.s3.%v.amazonaws.com/%v", cfg.s3Bucket, cfg.s3Region, url) //change s3key to url
+	video.VideoURL = &url
 
 	err = cfg.db.UpdateVideo(video)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "error updating video", err)
 		return
 	}
-	respondWithJSON(w, 200, nil)
+	video, err = cfg.dbVideoToSignedVideo(video)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "could not get signed Video", err)
+		return
+	}
 
+	respondWithJSON(w, 200, video)
 }
